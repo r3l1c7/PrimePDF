@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows 10 2004 flavour so the built-in Windows.Media.Ocr engine is available:
+         it reads scanned pages offline with no extra language data to ship. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>PrimePdf</AssemblyName>
+    <RootNamespace>PrimePdf</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>Prime PDF</Product>
+    <AssemblyTitle>Prime PDF</AssemblyTitle>
+    <!-- Globalization data must stay in. WPF resolves fonts and text through the current
+         culture, and the Windows OCR engine is selected by language, so invariant mode
+         makes both throw "1033 is an invalid culture identifier" at runtime. It saves a
+         few MB and breaks the application. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PrimePdf.Core\PrimePdf.Core.csproj" />
+  </ItemGroup>
+
+</Project>

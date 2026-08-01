@@ -1,0 +1,9 @@
+﻿<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrimePdf.Core/PrimePdf.Core.csproj" />
+    <Project Path="src/PrimePdf/PrimePdf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EngineTests/EngineTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,38 @@
+## Build output
+bin/
+obj/
+publish/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+
+## Rider / Visual Studio / VS Code
+.vs/
+.idea/
+.vscode/
+*.userprefs
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+!nuget.config
+
+## Test and tooling artefacts
+TestResults/
+*.trx
+*.coverage
+*.received.*
+
+## OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+## Generated during a build; regenerate with:
+##   dotnet run --project tests/EngineTests -- --icon src/PrimePdf/app.ico
+## Kept in source control so a clean clone builds without running the generator.
+!src/PrimePdf/app.ico
