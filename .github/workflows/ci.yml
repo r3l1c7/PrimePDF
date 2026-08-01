@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine-tests:
+    name: Engine assertions (headless)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run engine assertions
+        run: dotnet run --project tests/EngineTests --configuration Release --no-build
+
+  publish:
+    name: Self-contained publish (win-x64)
+    runs-on: windows-latest
+    needs: engine-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish single file
+        run: >
+          dotnet publish src/PrimePdf/PrimePdf.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish/PrimePdf
+
+      - name: Upload PrimePdf.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimePdf-win-x64
+          path: publish/PrimePdf/PrimePdf.exe
+          if-no-files-found: error
