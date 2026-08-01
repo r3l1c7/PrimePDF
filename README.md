@@ -7,6 +7,7 @@
 One window. Large, plainly labelled buttons. No account, no upload, no subscription —
 and no way to accidentally destroy the file you started with.
 
+[![CI](https://github.com/r3l1c7/PrimePDF/actions/workflows/ci.yml/badge.svg)](https://github.com/r3l1c7/PrimePDF/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4.svg)](https://dotnet.microsoft.com/)
 [![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%20x64-0078D4.svg)](#running-it)
