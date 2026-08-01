@@ -1,0 +1,41 @@
+name: Idea or feature request
+description: Suggest something, ideally in terms of what a person is trying to get done.
+title: "[idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The interface is deliberately small, because it is built for people who do not
+        use computers much. The bar for a new control on the main window is high; the
+        bar for making an existing one work better is low.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task, not the button.
+      placeholder: I get scanned invoices and need to hide the account number before emailing them on.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: Optional. How you imagine it working, if you have a view.
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How you do it today
+      description: Another tool, a workaround, or not at all.
+
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Does it fit the project?
+      options:
+        - label: It works offline, with no account and no upload.
+        - label: It does not make the main window harder to understand.
+        - label: It cannot destroy the original file.
