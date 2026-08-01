@@ -1,0 +1,69 @@
+name: Bug report
+description: Something went wrong. A sample PDF is worth more than a description.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Almost every interesting bug in this codebase came from one specific document
+        doing something unexpected. If you can attach the file, please do.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+      placeholder: |
+        1. Opened ...
+        2. Clicked Black Out on ...
+        3. Expected ... but got ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app
+      options:
+        - Opening or combining files
+        - Black Out (redaction)
+        - Edit Text
+        - Fill and Sign
+        - Draw, Highlight or Erase
+        - Pages (reorder, rotate, duplicate, delete)
+        - Find
+        - OCR and scanned pages
+        - Save a Copy
+        - Zoom, scrolling or the window itself
+        - Default PDF reader registration
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample PDF
+      description: >-
+        Drag the file into this box. Please strip anything private first, or send a
+        dummy file that still reproduces the problem.
+
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: The commit SHA you built from, or the date of your build.
+      placeholder: "2c67773, built 2026-07-30"
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version, display scaling and resolution
+      placeholder: "Windows 11 23H2, 150% scaling, 2560x1440"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Error text, a screenshot, or what you had tried just before it happened.
