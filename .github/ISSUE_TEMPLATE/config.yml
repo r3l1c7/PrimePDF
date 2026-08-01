@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/r3l1c7/PrimePDF/security/advisories/new
+    about: Report privately instead of opening a public issue. Recoverable text after a redaction counts.
+  - name: How the app works, and why
+    url: https://github.com/r3l1c7/PrimePDF#readme
+    about: Redaction, file size, OCR, security and limitations are all covered in the README.
