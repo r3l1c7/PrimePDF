@@ -1,21 +1,60 @@
-﻿# Prime PDF
+<div align="center">
 
-A PDF editor built for people who do not use computers much. One window, large
-labelled buttons, plain-English instructions, and no way to accidentally destroy the
-file you started with.
+# Prime PDF
 
-Redaction that genuinely deletes the text, fill-and-sign, page organising, and OCR for
-scans — all offline, with no account, no upload and no subscription.
+**A free, offline PDF editor for people who do not use computers much.**
+
+One window. Large, plainly labelled buttons. No account, no upload, no subscription —
+and no way to accidentally destroy the file you started with.
 
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
-![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
-![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-0078D4)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4.svg)](https://dotnet.microsoft.com/)
+[![Platform: Windows x64](https://img.shields.io/badge/platform-Windows%20x64-0078D4.svg)](#running-it)
+[![Tests: 92 assertions](https://img.shields.io/badge/tests-92%20assertions-brightgreen.svg)](#tests)
+[![Offline: no telemetry](https://img.shields.io/badge/offline-no%20telemetry-success.svg)](#security)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](#contributing)
 
 ![The editor with a form open](docs/screenshot.png)
+
+</div>
+
+---
+
+Redaction that **genuinely deletes the text**, fill-and-sign, page organising, and OCR
+for scans — all of it offline, on your own machine.
 
 > **Status:** works end to end and is covered by 92 automated assertions, but it has not
 > yet been through a wide range of real-world PDFs. Treat it as early. Bug reports with a
 > sample file are the most useful thing you can send.
+
+## Try it in one minute
+
+```bash
+git clone https://github.com/r3l1c7/PrimePDF.git
+cd PrimePDF
+dotnet run --project src/PrimePdf
+```
+
+Prefer a single file you can copy to any Windows x64 machine and double-click? See
+[Running it](#running-it) for the self-contained ~73 MB `PrimePdf.exe` build.
+
+## Contents
+
+| | |
+|---|---|
+| [What it does](#what-it-does) | every tool, one line each |
+| [Redaction actually removes the text](#redaction-actually-removes-the-text) | why a black rectangle is not redaction |
+| [Why an edited file gets bigger](#why-an-edited-file-gets-bigger) | the size cost, measured |
+| [Reading and scrolling](#reading-and-scrolling) | one column, Ctrl+wheel zoom |
+| [Scanned pages](#scanned-pages) | OCR using the engine already in Windows |
+| [Becoming the default PDF reader](#becoming-the-default-pdf-reader) | what an app may and may not do |
+| [Running it](#running-it) | build and run |
+| [Security](#security) | threat model, findings, residual risk |
+| [Tests](#tests) | two suites, and why |
+| [How it is put together](#how-it-is-put-together) | project layout and the decisions behind it |
+| [Limitations](#limitations) | what it will not do |
+| [A note on dependencies](#a-note-on-dependencies) | the PdfPig name-squat, watch out |
+| [Contributing](#contributing) | what makes a change easy to accept |
 
 ## What it does
 
@@ -69,7 +108,7 @@ rasterised, and only that page. Signing, ticking and annotating leave the origin
 and its searchable text — completely intact. The confirmation dialog says in plain words
 what happened after saving.
 
-## Why an edited file gets bigger — and how much
+## Why an edited file gets bigger
 
 Redacting properly means the page can no longer be a set of text instructions, because
 those instructions are exactly what has to disappear. That page becomes an image, and an
