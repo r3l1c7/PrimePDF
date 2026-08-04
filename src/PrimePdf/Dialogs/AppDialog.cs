@@ -75,6 +75,14 @@ public sealed class SaveResultWindow : DialogShell
         AddParagraph($"Your PDF was saved as “{Path.GetFileName(result.Path)}”.");
         AddParagraph($"{result.PageCount} page(s) · {FormatSize(result.Bytes)}", muted: true);
 
+        if (result.SearchablePages > 0)
+        {
+            AddCallout(
+                $"{result.SearchablePages} scanned page(s) can now be searched. The words were added invisibly "
+                + "behind the picture, so the page looks the same but any PDF reader can find and copy the text.",
+                "#EFF4FF", "#BBD3F8");
+        }
+
         if (hadRedactions)
         {
             AddCallout(

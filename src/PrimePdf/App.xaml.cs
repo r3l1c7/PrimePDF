@@ -272,6 +272,27 @@ public partial class App : Application
                 foreach (var hit in hits.Take(3))
                     Console.WriteLine($"   at ({hit.Rect.X:F0},{hit.Rect.Y:F0}) {hit.Rect.W:F0}x{hit.Rect.H:F0}pt  '{hit.Context}'");
 
+                // And that saving produces a file another reader can search, which is the
+                // whole point of the conversion.
+                var pages = Enumerable.Range(0, source.PageCount)
+                    .Select(i => new Core.PageEntry { Source = source, SourceIndex = i })
+                    .ToList();
+
+                var searchablePath = Path.Combine(
+                    Path.GetDirectoryName(Path.GetFullPath(pdfPath))!,
+                    Path.GetFileNameWithoutExtension(pdfPath) + "-searchable.pdf");
+
+                var export = Core.Exporter.Export(pages, searchablePath);
+                Console.WriteLine($"\nSaved searchable copy: {Path.GetFileName(searchablePath)} " +
+                                  $"({export.SearchablePages} page(s) given a text layer, {export.Bytes / 1024} KB)");
+
+                using (var reopened = UglyToad.PdfPig.PdfDocument.Open(searchablePath))
+                {
+                    var text = string.Concat(reopened.GetPages().Select(p => p.Text));
+                    Console.WriteLine($"Text extractable from the saved file: {text.Length} characters");
+                    Console.WriteLine("Contains 'Whitfield': " + text.Contains("Whitfield"));
+                }
+
                 Shutdown(hits.Count > 0 ? 0 : 2);
             }
             catch (Exception ex)

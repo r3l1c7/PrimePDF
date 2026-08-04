@@ -43,7 +43,11 @@ public sealed class PageEntry
         HasMarks
         && !NeedsFlatten
         && PageTransform.Normalize(ExtraRotation) == 0
-        && Source.PageRotation(SourceIndex) == 0;
+        && Source.PageRotation(SourceIndex) == 0
+        // A CropBox offset means mark space and the page's own drawing space disagree,
+        // and the overlay would land shifted by that amount.
+        && Math.Abs(Source.CropOrigin(SourceIndex).X) < 0.01
+        && Math.Abs(Source.CropOrigin(SourceIndex).Y) < 0.01;
 
     public PageEntry CloneShallowMarks() => new()
     {

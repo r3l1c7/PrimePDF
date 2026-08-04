@@ -143,22 +143,37 @@ internal static class SelfTest
             Check("pages panel opens", () => window.ShowPagesPanelForSelfTest());
             Check("zoom controls work", () => window.ZoomForSelfTest());
 
-            Console.WriteLine("\n=== The wheel zooms ===");
-            Check("wheel up zooms in", () =>
+            Console.WriteLine("\n=== Wheel scrolls, Ctrl+wheel zooms ===");
+            Check("a plain wheel turn does not change zoom", () =>
             {
                 window.FitForSelfTest();
                 double before = window.CurrentZoomForSelfTest;
-                double after = window.SimulateWheelForSelfTest(120);
+                double after = window.SimulateWheelForSelfTest(120, ctrlHeld: false);
+                if (Math.Abs(after - before) > 1e-9)
+                    throw new InvalidOperationException($"zoom moved {before:P0} -> {after:P0}; it should have scrolled");
+            });
+
+            Check("Ctrl and wheel up zooms in", () =>
+            {
+                double before = window.CurrentZoomForSelfTest;
+                double after = window.SimulateWheelForSelfTest(120, ctrlHeld: true);
                 if (after <= before)
                     throw new InvalidOperationException($"zoom went {before:P0} -> {after:P0}");
             });
 
-            Check("wheel down zooms out", () =>
+            Check("Ctrl and wheel down zooms out", () =>
             {
                 double before = window.CurrentZoomForSelfTest;
-                double after = window.SimulateWheelForSelfTest(-120);
+                double after = window.SimulateWheelForSelfTest(-120, ctrlHeld: true);
                 if (after >= before)
                     throw new InvalidOperationException($"zoom went {before:P0} -> {after:P0}");
+            });
+
+            Check("the wheel handler is actually attached to the canvas", () =>
+            {
+                // Guards the wiring, not the maths: a detached handler would leave every
+                // check above passing while the real gesture did nothing.
+                window.RaiseWheelForSelfTest(120);
             });
 
             Console.WriteLine("\n=== Zoom always passes through 100% ===");

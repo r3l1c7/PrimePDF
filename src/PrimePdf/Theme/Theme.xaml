@@ -94,6 +94,10 @@
     <Geometry x:Key="IconCheck">M5.2 12.6 9.6 17 18.8 7.4</Geometry>
     <Geometry x:Key="IconExtract">M12 3.8v9.4M8.3 9.6l3.7 3.6 3.7-3.6M4.8 15.6v2.8a2 2 0 0 0 2 2h10.4a2 2 0 0 0 2-2v-2.8</Geometry>
 
+    <!-- Make searchable: a page of text with a lens over it. Related to Find, but this
+         one is about giving a scan text in the first place. -->
+    <Geometry x:Key="IconSearchable">M13.6 3.6H6.6a2 2 0 0 0-2 2v12.8a2 2 0 0 0 2 2h4M13.6 3.6v4.8h4.8M13.6 3.6l4.8 4.8v2.2M7.8 10.4h6.4M7.8 13.4h3.8M15.6 13.6a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM17.8 18.2l2.6 2.6</Geometry>
+
     <!-- ============================ icon styles ============================
          Icons take their colour from the button they sit in, so a selected tool
          tints its icon without every call site having to say so. -->

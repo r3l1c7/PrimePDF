@@ -1,4 +1,5 @@
-﻿using PdfSharp.Drawing;
+﻿using System.Text;
+using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using SkiaSharp;
 
@@ -25,9 +26,15 @@ public sealed record ExportOptions
 
     /// <summary>Drop author/title/keywords from the output.</summary>
     public bool StripMetadata { get; init; } = true;
+
+    /// <summary>
+    /// Write recognised text from scanned pages into the saved file as an invisible
+    /// layer, so the result is searchable in any PDF reader rather than only here.
+    /// </summary>
+    public bool EmbedRecognisedText { get; init; } = true;
 }
 
-public sealed record ExportResult(string Path, int PageCount, int FlattenedPages, long Bytes);
+public sealed record ExportResult(string Path, int PageCount, int FlattenedPages, long Bytes, int SearchablePages = 0);
 
 /// <summary>
 /// Writes the finished document out.
@@ -52,24 +59,33 @@ public static class Exporter
         // XImage reads lazily, so every stream has to stay open until Save() has run.
         var pending = new List<MemoryStream>();
         int flattened = 0;
+        int searchable = 0;
 
         try
         {
             foreach (var page in pages)
             {
+                PdfPage produced;
+
                 if (!options.FlattenEverything && !page.HasMarks)
                 {
-                    AddCopiedPage(output, page);
-                    continue;
+                    produced = AddCopiedPage(output, page);
+                }
+                else if (!options.FlattenEverything && page.CanOverlay
+                         && TryAddOverlayPage(output, page, options, pending) is { } overlaid)
+                {
+                    // Additive marks — ink, signatures, ticks, added text — hide nothing,
+                    // so the original page is kept intact with a small image laid on top.
+                    produced = overlaid;
+                }
+                else
+                {
+                    produced = AddFlattenedPage(output, page, options, pending);
+                    flattened++;
                 }
 
-                // Additive marks — ink, signatures, ticks, added text — hide nothing, so
-                // the original page can be kept intact with a small image laid on top.
-                if (!options.FlattenEverything && page.CanOverlay && TryAddOverlayPage(output, page, options, pending))
-                    continue;
-
-                AddFlattenedPage(output, page, options, pending);
-                flattened++;
+                if (options.EmbedRecognisedText && TryAddSearchableText(output, produced, page))
+                    searchable++;
             }
 
             output.Save(outputPath);
@@ -80,10 +96,10 @@ public static class Exporter
         }
 
         var info = new FileInfo(outputPath);
-        return new ExportResult(outputPath, pages.Count, flattened, info.Length);
+        return new ExportResult(outputPath, pages.Count, flattened, info.Length, searchable);
     }
 
-    private static void AddCopiedPage(PdfDocument output, PageEntry page)
+    private static PdfPage AddCopiedPage(PdfDocument output, PageEntry page)
     {
         var src = page.Source.SharpDocument;
         var imported = output.AddPage(src.Pages[page.SourceIndex]);
@@ -94,9 +110,11 @@ public static class Exporter
             try { existing = imported.Rotate; } catch { /* absent or malformed /Rotate */ }
             imported.Rotate = PageTransform.Normalize(existing + page.ExtraRotation);
         }
+
+        return imported;
     }
 
-    private static void AddFlattenedPage(PdfDocument output, PageEntry page, ExportOptions options, List<MemoryStream> pending)
+    private static PdfPage AddFlattenedPage(PdfDocument output, PageEntry page, ExportOptions options, List<MemoryStream> pending)
     {
         using var renderer = new PageRenderer(capacity: 1);
         using var bitmap = renderer.RenderComposite(page, options.Dpi, showGuides: false);
@@ -111,9 +129,13 @@ public static class Exporter
         pdfPage.Width = XUnit.FromPoint(t.DisplayWidth);
         pdfPage.Height = XUnit.FromPoint(t.DisplayHeight);
 
-        using var gfx = XGraphics.FromPdfPage(pdfPage);
-        var image = XImage.FromStream(stream);
-        gfx.DrawImage(image, 0, 0, t.DisplayWidth, t.DisplayHeight);
+        using (var gfx = XGraphics.FromPdfPage(pdfPage))
+        {
+            var image = XImage.FromStream(stream);
+            gfx.DrawImage(image, 0, 0, t.DisplayWidth, t.DisplayHeight);
+        }
+
+        return pdfPage;
     }
 
     /// <summary>
@@ -124,8 +146,8 @@ public static class Exporter
     /// The marks are drawn by the same painter the editor previews with, so there is
     /// still only one piece of code deciding what a mark looks like.
     /// </summary>
-    /// <returns>False if the overlay could not be produced, so the caller can flatten instead.</returns>
-    private static bool TryAddOverlayPage(PdfDocument output, PageEntry page, ExportOptions options, List<MemoryStream> pending)
+    /// <returns>The page, or null if the overlay could not be produced so the caller flattens.</returns>
+    private static PdfPage? TryAddOverlayPage(PdfDocument output, PageEntry page, ExportOptions options, List<MemoryStream> pending)
     {
         try
         {
@@ -140,12 +162,12 @@ public static class Exporter
             double y0 = Math.Max(0, bounds.Y);
             double x1 = Math.Min(t.DisplayWidth, bounds.Right);
             double y1 = Math.Min(t.DisplayHeight, bounds.Bottom);
-            if (x1 - x0 < 1 || y1 - y0 < 1) return false;
+            if (x1 - x0 < 1 || y1 - y0 < 1) return null;
 
             double scale = options.Dpi / 72.0;
             int pxW = (int)Math.Ceiling((x1 - x0) * scale);
             int pxH = (int)Math.Ceiling((y1 - y0) * scale);
-            if (pxW < 1 || pxH < 1 || (long)pxW * pxH > PageRenderer.MaxRenderPixels) return false;
+            if (pxW < 1 || pxH < 1 || (long)pxW * pxH > PageRenderer.MaxRenderPixels) return null;
 
             using var bitmap = new SKBitmap(pxW, pxH, SKColorType.Bgra8888, SKAlphaType.Premul);
             using (var canvas = new SKCanvas(bitmap))
@@ -157,7 +179,7 @@ public static class Exporter
 
             // PNG, because the overlay has to keep its transparency.
             using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100);
-            if (data is null) return false;
+            if (data is null) return null;
 
             var stream = new MemoryStream(data.ToArray(), writable: false);
             var imported = output.AddPage(page.Source.SharpDocument.Pages[page.SourceIndex]);
@@ -167,14 +189,110 @@ public static class Exporter
             gfx.DrawImage(image, x0, y0, x1 - x0, y1 - y0);
 
             pending.Add(stream);
-            return true;
+            return imported;
         }
         catch
         {
             // Anything unexpected here is not worth risking a wrong-looking page over;
             // the caller falls back to rasterising, which always works.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Writes recognised words onto a page as invisible text, turning a scan into a
+    /// document that any reader can search and copy from.
+    ///
+    /// Text rendering mode 3 draws nothing but is still real text in the content stream,
+    /// which is exactly what search and selection read. The font is the standard
+    /// Helvetica, so nothing has to be embedded — the whole layer costs a few kilobytes
+    /// and carries no font licensing with it.
+    ///
+    /// Words sitting under a redaction are dropped. Recognised text is the one path that
+    /// could quietly put blacked-out words back into the file in a searchable form, which
+    /// would undo the single most important thing this application does.
+    /// </summary>
+    /// <returns>True if a text layer was written.</returns>
+    private static bool TryAddSearchableText(PdfDocument output, PdfPage pdfPage, PageEntry page)
+    {
+        try
+        {
+            var words = page.Source.RecognisedWords(page.SourceIndex);
+            if (words.Length == 0) return false;
+
+            // The layer is positioned in the page's own unrotated space; a rotated page
+            // would need the inverse transform, and getting that subtly wrong would put
+            // invisible text in the wrong place where nobody would ever see it.
+            if (PageTransform.Normalize(page.ExtraRotation) != 0) return false;
+            if (page.Source.PageRotation(page.SourceIndex) != 0) return false;
+
+            var hidden = page.Marks.Where(m => m.RequiresFlatten).Select(m => m.Bounds).ToList();
+            var (cropX, cropY) = page.Source.CropOrigin(page.SourceIndex);
+            double pageHeight = page.BaseSize.H;
+
+            var content = new StringBuilder();
+            content.Append("BT\n3 Tr\n");   // 3 Tr = render nothing, but still be text
+
+            int written = 0;
+            foreach (var word in words)
+            {
+                if (hidden.Any(h => h.Intersects(word.Rect))) continue;
+
+                var text = EscapePdfString(word.Text);
+                if (text.Length == 0) continue;
+
+                double size = Math.Clamp(word.Rect.H * 0.92, 1, 300);
+                double x = word.Rect.X + cropX;
+                double y = pageHeight - word.Rect.Bottom + cropY;
+
+                content.Append($"/PrimeOcr {size:0.##} Tf 1 0 0 1 {x:0.##} {y:0.##} Tm ({text}) Tj\n");
+                written++;
+            }
+            content.Append("ET\n");
+
+            if (written == 0) return false;
+
+            // A base-14 font needs no embedding and is understood everywhere.
+            var font = new PdfDictionary(output);
+            font.Elements["/Type"] = new PdfName("/Font");
+            font.Elements["/Subtype"] = new PdfName("/Type1");
+            font.Elements["/BaseFont"] = new PdfName("/Helvetica");
+            font.Elements["/Encoding"] = new PdfName("/WinAnsiEncoding");
+            output.Internals.AddObject(font);
+
+            var fonts = pdfPage.Resources.Elements.GetDictionary("/Font");
+            if (fonts is null)
+            {
+                fonts = new PdfDictionary(output);
+                pdfPage.Resources.Elements["/Font"] = fonts;
+            }
+            fonts.Elements["/PrimeOcr"] = font.Reference;
+
+            var stream = pdfPage.Contents.AppendContent();
+            stream.CreateStream(Encoding.ASCII.GetBytes(content.ToString()));
+            return true;
+        }
+        catch
+        {
+            // A page that will not take the layer simply stays unsearchable; that is a
+            // missing convenience, not a broken document.
             return false;
         }
+    }
+
+    /// <summary>
+    /// Escapes a word for a PDF literal string and drops anything WinAnsi cannot carry,
+    /// so an unusual character cannot corrupt the content stream.
+    /// </summary>
+    private static string EscapePdfString(string value)
+    {
+        var sb = new StringBuilder(value.Length + 4);
+        foreach (var c in value)
+        {
+            if (c is '(' or ')' or '\\') sb.Append('\\').Append(c);
+            else if (c >= ' ' && c <= 'ÿ') sb.Append(c);
+        }
+        return sb.ToString().Trim();
     }
 
     private static SKData EncodePage(SKBitmap bitmap, ExportOptions options)

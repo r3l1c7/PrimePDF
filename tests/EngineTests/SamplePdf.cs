@@ -59,9 +59,14 @@ public static class SamplePdf
             y -= 30;
         }
 
+        // Every identifier below is from a range reserved for fiction, so nothing here can
+        // collide with a real person's details once this repository is public:
+        //   987-65-4320..4329  reserved by the SSA for advertising and fiction
+        //   555-0100..555-0199 reserved fictional telephone numbers
+        //   example.com        reserved for documentation by RFC 2606
         Field("Full name", "Margaret Ellen Whitfield");
         Field("Date of birth", "14 March 1948");
-        Field("Social Security No.", "412-77-9330");
+        Field("Social Security No.", "987-65-4321");
         Field("Home address", "1187 Cedar Hollow Road, Apt 4B");
         Field("City / State / ZIP", "Brookfield, VT 05036");
         Field("Telephone", "(802) 555-0148");

@@ -513,6 +513,76 @@ Section("Signing a page does not rasterise it");
 }
 
 // ---------------------------------------------------------------------------
+Section("Making a scan searchable");
+
+{
+    // Stand in for a real OCR pass: a scanned page carries no text, and recognised
+    // words are fed into the same index the engine uses everywhere else.
+    var scanSource = TestPdf.WriteTemp(workDir, "scan-source.pdf", TestPdf.Build(
+        new TestPdf.PageSpec(new[] { "INVOICE 7781", "Client Acme Limited", "Account 55512345" })));
+
+    var scanned = Path.Combine(workDir, "scan-flat.pdf");
+    using (var flat = new DocumentModel())
+    {
+        flat.OpenSingle(scanSource);
+        Exporter.Export(flat.Pages, scanned, new ExportOptions { FlattenEverything = true, Dpi = 150 });
+    }
+    Check("the scan really has no text to begin with", TextOf(scanned, 1).Trim().Length == 0);
+
+    // The word rectangles an OCR pass would produce, taken from the original.
+    WordBox[] recognised;
+    using (var original = PdfSource.Open(scanSource)) recognised = original.Words(0);
+    Check("reference words available", recognised.Length > 3, $"got {recognised.Length}");
+
+    {
+        using var doc = new DocumentModel();
+        doc.OpenSingle(scanned);
+        doc.Pages[0].Source.SetOcrWords(0, recognised);
+
+        var outPath = Path.Combine(workDir, "scan-searchable.pdf");
+        var result = Exporter.Export(doc.Pages, outPath, new ExportOptions { Dpi = 150 });
+
+        Check("one page gained a text layer", result.SearchablePages == 1, $"got {result.SearchablePages}");
+        Check("the page was not rasterised again", result.FlattenedPages == 0, $"got {result.FlattenedPages}");
+
+        var text = TextOf(outPath, 1);
+        Check("the scan is now searchable", text.Contains("INVOICE"), $"text = '{text}'");
+        Check("all recognised words are present",
+            text.Contains("Acme") && text.Contains("55512345"), $"text = '{text}'");
+    }
+
+    // The dangerous case: recognised text must not put a blacked-out word back.
+    {
+        using var doc = new DocumentModel();
+        doc.OpenSingle(scanned);
+        doc.Pages[0].Source.SetOcrWords(0, recognised);
+
+        var secret = recognised.First(w => w.Text.Contains("55512345"));
+        doc.AddMark(0, new RedactMark { Rect = secret.Rect.Inflate(1) });
+
+        var outPath = Path.Combine(workDir, "scan-searchable-redacted.pdf");
+        Exporter.Export(doc.Pages, outPath, new ExportOptions { Dpi = 150 });
+
+        var text = TextOf(outPath, 1);
+        Check("the redacted word is NOT restored by the text layer",
+            !text.Contains("55512345"), $"text = '{text}'");
+        Check("other words on the page stay searchable", text.Contains("Acme"), $"text = '{text}'");
+
+        var raw = File.ReadAllBytes(outPath);
+        var needle = System.Text.Encoding.ASCII.GetBytes("55512345");
+        bool found = false;
+        for (int i = 0; i + needle.Length <= raw.Length && !found; i++)
+        {
+            bool match = true;
+            for (int j = 0; j < needle.Length; j++)
+                if (raw[i + j] != needle[j]) { match = false; break; }
+            found = match;
+        }
+        Check("and it is absent from the raw file bytes", !found);
+    }
+}
+
+// ---------------------------------------------------------------------------
 Section("Hostile input: oversized pages cannot exhaust memory");
 
 {

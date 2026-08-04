@@ -73,6 +73,13 @@
                             <TextBlock Text="Find" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="BtnSearchable" Style="{StaticResource ToolbarButton}" Click="OnMakeSearchable"
+                            ToolTip="Read the text on scanned pages, so the saved file can be searched and copied from in any PDF reader">
+                        <StackPanel>
+                            <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource IconSearchable}"/>
+                            <TextBlock Text="Searchable" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,0">

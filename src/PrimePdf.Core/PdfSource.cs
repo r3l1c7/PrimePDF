@@ -42,6 +42,9 @@ public sealed class PdfSource : IDisposable
     /// <summary>Per-page /Rotate, read on demand alongside the sizes.</summary>
     private readonly int?[] _rotations;
 
+    /// <summary>Per-page CropBox origin, read on demand.</summary>
+    private readonly (double X, double Y)?[] _cropOrigins;
+
     /// <summary>Fallback used when a page will not parse at all: US Letter.</summary>
     private static readonly (double W, double H) DefaultPageSize = (612, 792);
 
@@ -55,6 +58,7 @@ public sealed class PdfSource : IDisposable
         PageCount = pig.NumberOfPages;
         _sizes = new (double, double)?[PageCount];
         _rotations = new int?[PageCount];
+        _cropOrigins = new (double, double)?[PageCount];
     }
 
     public static PdfSource Open(string path, string? password = null)
@@ -145,6 +149,51 @@ public sealed class PdfSource : IDisposable
 
     /// <summary>True when the page carries real text; false for a scanned image.</summary>
     public bool HasTextLayer(int index) => EmbeddedWords(index).Length > 0;
+
+    /// <summary>
+    /// Only the words produced by OCR, if a pass has run. Kept separate from
+    /// <see cref="Words"/> because the exporter must know which text came from
+    /// recognition — that is the text worth writing into the saved file.
+    /// </summary>
+    public WordBox[] RecognisedWords(int index)
+    {
+        lock (_gate)
+            return _ocrCache.TryGetValue(index, out var w) ? w : Array.Empty<WordBox>();
+    }
+
+    /// <summary>
+    /// Bottom-left corner of the page's CropBox in PDF user space.
+    ///
+    /// PdfPig reports text relative to the CropBox, but a page's content stream is drawn
+    /// in MediaBox space. On a cropped page the two differ, and anything written back
+    /// into the file has to add this offset or it lands in the wrong place.
+    /// </summary>
+    public (double X, double Y) CropOrigin(int index)
+    {
+        if (index < 0 || index >= PageCount) return (0, 0);
+
+        lock (_gate)
+        {
+            if (_cropOrigins[index] is { } cached) return cached;
+
+            var origin = (0.0, 0.0);
+            try
+            {
+                if (_pig is not null)
+                {
+                    var box = _pig.GetPage(index + 1).CropBox.Bounds;
+                    origin = (box.Left, box.Bottom);
+                }
+            }
+            catch
+            {
+                // Unreadable page: assume no offset, which is true of almost every PDF.
+            }
+
+            _cropOrigins[index] = origin;
+            return origin;
+        }
+    }
 
     /// <summary>The /Rotate the file itself declares for a page, normalised to 0/90/180/270.</summary>
     public int PageRotation(int index)

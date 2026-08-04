@@ -55,6 +55,63 @@ public partial class MainWindow
         if (accepted) await RunOcrAsync(scans);
     }
 
+    /// <summary>
+    /// The deliberate "make this searchable" action, as opposed to the incidental OCR
+    /// offered when a tool needs text. Reading a whole document so it can be searched in
+    /// any reader is a task in its own right, and it should not require guessing that
+    /// clicking a word is how you start it.
+    /// </summary>
+    private async void OnMakeSearchable(object sender, RoutedEventArgs e)
+    {
+        if (_doc.IsEmpty || _ocrRunning) return;
+
+        if (!OcrService.IsAvailable)
+        {
+            AppDialog.Info(this, "Text recognition is not available",
+                "Windows does not have a language pack installed for reading text from pictures.\n\n"
+                + "You can add one under Settings, Time & language, Language & region.",
+                AppDialogKind.Warning);
+            return;
+        }
+
+        var scans = ScannedPages();
+
+        if (scans.Count == 0)
+        {
+            bool alreadyRead = _doc.Pages.Any(p => p.Source.RecognisedWords(p.SourceIndex).Length > 0);
+
+            AppDialog.Info(this,
+                alreadyRead ? "Already done" : "Nothing to read here",
+                alreadyRead
+                    ? "The scanned pages in this document have already been read. Use Save a Copy to keep a searchable version."
+                    : "Every page in this document already contains real text, so it can be searched as it is. "
+                      + "Reading is only needed for pages that are pictures of text.",
+                AppDialogKind.Info);
+            return;
+        }
+
+        bool confirmed = AppDialog.Ask(this,
+            scans.Count == 1 ? "Read 1 scanned page?" : $"Read {scans.Count} scanned pages?",
+            "The words on those pages will be recognised and stored invisibly behind the picture, so the saved "
+            + "copy can be searched and copied from in any PDF reader.\n\n"
+            + "The page will look exactly the same. This happens entirely on this computer.",
+            "Read them", "Cancel",
+            AppDialogKind.Info);
+
+        if (!confirmed) return;
+
+        await RunOcrAsync(scans, markDirty: true);
+
+        int read = _doc.Pages.Count(p => p.Source.RecognisedWords(p.SourceIndex).Length > 0);
+        if (read == 0) return;   // RunOcrAsync has already explained the failure
+
+        AppDialog.Info(this, "Ready to save",
+            $"{read} page(s) can now be searched.\n\n"
+            + "Use Save a Copy to write a searchable version of the file. The text is added invisibly, "
+            + "so nothing on the page looks different.",
+            AppDialogKind.Success);
+    }
+
     /// <summary>True when the page on screen is an unread scan.</summary>
     private bool NeedsOcrHere() =>
         CurrentPage is { } page && page.Source.NeedsOcr(page.SourceIndex);
@@ -83,7 +140,7 @@ public partial class MainWindow
             await RunOcrAsync(new List<(PdfSource, int)> { (page.Source, page.SourceIndex) });
     }
 
-    private async Task RunOcrAsync(IReadOnlyList<(PdfSource Source, int Index)> targets)
+    private async Task RunOcrAsync(IReadOnlyList<(PdfSource Source, int Index)> targets, bool markDirty = false)
     {
         if (targets.Count == 0 || _ocrRunning) return;
         _ocrRunning = true;
@@ -135,6 +192,10 @@ public partial class MainWindow
                 AppDialogKind.Warning);
             return;
         }
+
+        // Recognised text only reaches the file when it is saved, so the document counts
+        // as changed from here on.
+        if (markDirty) _doc.MarkDirty();
 
         var language = OcrService.LanguageName;
         SetHint($"Read {wordsFound} word(s)"

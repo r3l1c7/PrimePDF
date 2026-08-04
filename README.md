@@ -30,7 +30,7 @@ scans — all offline, with no account, no upload and no subscription.
 | **Draw / Highlight** | Freehand pen and translucent highlighter, with colour and thickness. |
 | **Erase** | Removes anything you added. Never touches the original page content. |
 | **Find** | Search the whole document and black out every match in one step. |
-| **Read scans** | Scanned pages are recognised with OCR so words can be clicked, corrected and searched. |
+| **Searchable** | Runs OCR over scanned pages and writes an invisible text layer into the saved file, so it can be searched and copied from in *any* PDF reader. |
 | **Save a Copy** | Always writes a new file. |
 
 Also: Undo/Redo, zoom and fit, page navigation, and a "Bigger" button that scales the
@@ -94,7 +94,11 @@ something are rasterised, and only those pages.
 
 Every page sits in one scrolling column, so the wheel moves through the whole document
 and the page arrows are a convenience rather than the only way to travel. **Ctrl+wheel
-zooms**, matching every browser and reader.
+zooms**, matching Acrobat and every browser.
+
+Zoom steps on fixed stops — 25, 33, 50, 67, 75, 85, **100**, 125, 150 and up — so 100%
+is always reachable from either direction. A plain multiplier makes the stops depend on
+wherever the fit landed, and sails straight past the one value people actually want.
 
 Only pages near the viewport are rasterised, and their bitmaps are released once they
 scroll well clear, so a long document costs a few page renders rather than one per page.
@@ -115,8 +119,22 @@ Roughly 200 ms per page on this hardware.
 
 The recognised words are written into the *same word index* the editor already uses for
 embedded text, so click-to-redact, Edit Text and Find all start working on scans with no
-further special-casing. The self-test draws every recognised box back onto the page to
-prove the coordinates line up rather than merely parse:
+further special-casing.
+
+**Searchable output.** The toolbar's *Searchable* button reads every scanned page and
+writes the words into the saved file as invisible text — rendering mode 3, positioned
+over the picture, using the standard Helvetica so nothing has to be embedded. The page
+looks identical, the file grows by a few kilobytes, and the result is searchable in
+Acrobat, a browser, or anything else. A three-page scan gained a full text layer for
+about 5 KB.
+
+One rule that layer must obey: **words under a redaction are dropped.** Recognised text
+is the one path that could quietly put a blacked-out word back into the file in a
+searchable form, undoing the most important thing this program does. There is a test
+asserting exactly that, down to scanning the raw output bytes.
+
+The self-test draws every recognised box back onto the page to prove the coordinates line
+up rather than merely parse:
 
 ```bash
 PrimePdf.exe --ocr-test scanned.pdf overlay.png

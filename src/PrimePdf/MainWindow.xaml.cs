@@ -382,6 +382,7 @@ public partial class MainWindow : Window
         BtnRedo.IsEnabled = _doc.CanRedo;
         BtnSave.IsEnabled = has;
         BtnFind.IsEnabled = has;
+        BtnSearchable.IsEnabled = has;
         BtnZoomIn.IsEnabled = has;
         BtnZoomOut.IsEnabled = has;
         BtnFit.IsEnabled = has;
@@ -481,18 +482,23 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The wheel zooms, as asked. Shift held scrolls instead, and the scrollbar, the page
-    /// buttons and Page Up/Down all still move through the document.
+    /// Plain wheel scrolls, Ctrl+wheel zooms — the same as Acrobat, every browser and
+    /// every other reader. With all the pages in one column the wheel reaches the whole
+    /// document, so scrolling is the behaviour that earns the unmodified gesture.
     /// </summary>
     private void OnCanvasWheel(object sender, MouseWheelEventArgs e)
     {
-        if (_doc.IsEmpty) return;
+        if (HandleWheel(e.Delta, (Keyboard.Modifiers & ModifierKeys.Control) != 0))
+            e.Handled = true;
+    }
 
-        // Shift is the escape hatch back to scrolling; let the ScrollViewer handle it.
-        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) return;
+    /// <summary>The wheel decision, separated from the event so it can be tested.</summary>
+    private bool HandleWheel(int delta, bool ctrlHeld)
+    {
+        if (_doc.IsEmpty || !ctrlHeld) return false;   // unhandled: the ScrollViewer scrolls
 
-        if (e.Delta > 0) ZoomIn(); else ZoomOut();
-        e.Handled = true;
+        if (delta > 0) ZoomIn(); else ZoomOut();
+        return true;
     }
 
     // ============================================================= saving
@@ -742,18 +748,24 @@ public partial class MainWindow : Window
 
     internal double CurrentZoomForSelfTest => _zoom;
 
+    /// <summary>Drives the wheel decision directly, including the modifier state.</summary>
+    internal double SimulateWheelForSelfTest(int delta, bool ctrlHeld)
+    {
+        HandleWheel(delta, ctrlHeld);
+        return _zoom;
+    }
+
     /// <summary>
-    /// Raises a real wheel event at the scroller, so the self-test checks the handler is
-    /// actually wired up rather than just that the zoom maths is right.
+    /// Raises a real wheel event at the scroller, so the self-test also confirms the
+    /// handler is actually wired up rather than only that the maths is right.
     /// </summary>
-    internal double SimulateWheelForSelfTest(int delta)
+    internal void RaiseWheelForSelfTest(int delta)
     {
         var args = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
         {
             RoutedEvent = UIElement.PreviewMouseWheelEvent,
         };
         CanvasScroller.RaiseEvent(args);
-        return _zoom;
     }
     internal void ZoomInForSelfTest() => ZoomIn();
     internal void ZoomOutForSelfTest() => ZoomOut();
